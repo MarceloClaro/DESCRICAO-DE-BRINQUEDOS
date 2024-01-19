@@ -1,28 +1,21 @@
 import requests
 from bs4 import BeautifulSoup
-import json
 import streamlit as st
 import pandas as pd
 
 # Função para raspar e salvar dados em XLSX e CSV
-def raspar_e_salvar_dados(url, seletores, nome_arquivo_base):
+def raspar_e_salvar_dados(url, seletor_nome, seletor_descricao, seletor_preco, nome_arquivo_base):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Inicialize listas para armazenar os dados
-    nomes = []
-    descricoes = []
-    precos = []
+    # Encontre todos os elementos que correspondem ao seletor do nome do produto
+    nomes = [elemento.text.strip() for elemento in soup.select(seletor_nome)]
 
-    # Iterar sobre os seletores fornecidos pelo usuário
-    for seletor in seletores:
-        elementos = soup.select(seletor)
-        if seletor == seletores[0]:
-            nomes = [elemento.text.strip() for elemento in elementos]
-        elif seletor == seletores[1]:
-            descricoes = [elemento.text.strip() for elemento in elementos]
-        elif seletor == seletores[2]:
-            precos = [elemento.text.strip() for elemento in elementos]
+    # Encontre todos os elementos que correspondem ao seletor da descrição
+    descricoes = [elemento.text.strip() for elemento in soup.select(seletor_descricao)]
+
+    # Encontre todos os elementos que correspondem ao seletor do preço
+    precos = [elemento.text.strip() for elemento in soup.select(seletor_preco)]
 
     # Verificar se os arrays têm o mesmo comprimento
     if len(nomes) != len(descricoes) or len(nomes) != len(precos):
@@ -53,8 +46,9 @@ def raspar_e_salvar_dados(url, seletores, nome_arquivo_base):
 # Configurar a interface do Streamlit
 st.title('Raspagem de Dados HTML com Streamlit')
 url = st.text_input('Insira a URL que deseja raspar:')
-seletores = st.text_input('Insira os seletores HTML para o nome do produto, descrição e preço (separados por vírgula):')
+seletor_nome = st.text_input('Insira o seletor CSS para o nome do produto:')
+seletor_descricao = st.text_input('Insira o seletor CSS para a descrição:')
+seletor_preco = st.text_input('Insira o seletor CSS para o preço:')
 nome_arquivo_base = st.text_input('Insira o nome base dos arquivos XLSX e CSV (sem extensão):')
 if st.button('Raspar e Salvar Dados'):
-    seletores = [s.strip() for s in seletores.split(',')]
-    raspar_e_salvar_dados(url, seletores, nome_arquivo_base)
+    raspar_e_salvar_dados(url, seletor_nome, seletor_descricao, seletor_preco, nome_arquivo_base)
