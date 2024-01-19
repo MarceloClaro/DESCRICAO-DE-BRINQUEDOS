@@ -1,7 +1,8 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
+import re
 import pandas as pd
+from bs4 import BeautifulSoup
 
 # Configuração do Streamlit
 st.title('Raspagem de Dados de Produtos')
@@ -19,26 +20,36 @@ if st.button('Pesquisar e Raspagem de Dados'):
         # Analisar o conteúdo da página com BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Localize os elementos HTML com base na estrutura da página e no nome do produto
-        product_names = [element.text.strip() for element in soup.select('.product-title h1') if product_name in element.text]
-        product_prices = [element.text.strip() for element in soup.select('span.d-inline-block h4#price_display.js-price-display.h2.mb-2.text-brand') if product_name in element.text]
-        product_descriptions = [element.text.strip() for element in soup.select('.product-description') if product_name in element.text]
-        image_urls = [element.get('src') for element in soup.select('div.js-product-slide:nth-child(1) > a:nth-child(1) > img:nth-child(1)') if product_name in element.get('alt')]
+        # Encontrar todos os textos na página
+        all_text = soup.get_text()
+
+        # Usar regex para encontrar informações com base no nome do produto
+        pattern = re.compile(f'.*{re.escape(product_name)}.*', re.IGNORECASE)
+        matches = pattern.findall(all_text)
+
+        # Criar listas para armazenar informações encontradas
+        product_names = []
+        product_prices = []
+        product_descriptions = []
+
+        # Extrair informações com base nos padrões encontrados
+        for match in matches:
+            # Verificar se a correspondência contém informações de produto (ajuste conforme necessário)
+            if re.search(r'Preço:', match) and re.search(r'Descrição:', match):
+                product_names.append(re.search(r'(.*?)(Preço:|Descrição:)', match).group(1).strip())
+                product_prices.append(re.search(r'Preço:(.*?)(Descrição:|$)', match).group(1).strip())
+                product_descriptions.append(re.search(r'Descrição:(.*?)(Preço:|$)', match).group(1).strip())
 
         # Criar um DataFrame do Pandas com os dados coletados
         data = {
             'Nome do Produto': product_names,
             'Preço do Produto': product_prices,
-            'Descrição do Produto': product_descriptions,
-            'URL da Imagem': image_urls
+            'Descrição do Produto': product_descriptions
         }
         df = pd.DataFrame(data)
 
         # Exibir a tabela no Streamlit
         st.write(df)
-
-        # Salvar os dados em um arquivo CSV (opcional)
-        # df.to_csv('dados_produtos.csv', index=False)
 
     except requests.exceptions.RequestException as e:
         st.error(f"Erro ao acessar a URL: {str(e)}")
