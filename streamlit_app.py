@@ -1,80 +1,90 @@
-import requests
-from bs4 import BeautifulSoup
 import streamlit as st
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
-from lxml import html
 
-# Função para encontrar elementos HTML com base no nome do produto usando XPath
-def encontrar_elementos_com_base_no_nome(url, nome_produto):
-    response = requests.get(url)
-    page_content = html.fromstring(response.content)
+# Configuração do Streamlit
+st.title('Raspagem de Dados de Produtos')
 
-    # Use XPath para encontrar elementos que contenham o nome do produto
-    xpath_query = f"//*[contains(text(), '{nome_produto}')]"
-    elementos = page_content.xpath(xpath_query)
+# Interface do usuário para inserir o nome do produto
+product_name = st.text_input('Digite o nome do produto a ser pesquisado:')
+if st.button('Pesquisar e Raspagem de Dados'):
+    # Inicializar o driver do Selenium
+    driver = webdriver.Chrome(executable_path='seu_caminho_para_o_chromedriver')
 
-    # Crie uma lista de textos dos elementos encontrados
-    textos_elementos = [elemento.text_content() for elemento in elementos]
+    # Função para pesquisar e raspar dados
+    def search_and_scrape(product_name):
+        # Navegar para a página de pesquisa
+        driver.get('https://exemplo.com/pagina_de_pesquisa')
 
-    return textos_elementos
+        # Localizar a barra de pesquisa e inserir o nome do produto
+        search_box = driver.find_element(By.CSS_SELECTOR, 'input[type="search"]')
+        search_box.send_keys(product_name)
 
-# Função para raspar e salvar dados em XLSX e CSV
-def raspar_e_salvar_dados(url, seletor_nome, seletor_descricao, seletor_preco, nome_arquivo_base):
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
+        # Submeter o formulário de pesquisa (ajuste o seletor conforme necessário)
+        search_button = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+        search_button.click()
 
-    # Encontre todos os elementos que correspondem ao seletor do nome do produto
-    nomes = [elemento.text.strip() for elemento in soup.select(seletor_nome)]
+        # Aguarde até que a página de resultados seja carregada (ajuste o tempo limite conforme necessário)
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'html body.js-head-offset.head-offset.transition-long.template-search section.category-body div.container div.js-product-table.row a.js-item-link.item-link.position-absolute.w-100')))
 
-    # Encontre todos os elementos que correspondem ao seletor da descrição
-    descricoes = [elemento.text.strip() for elemento in soup.select(seletor_descricao)]
+        # Localize todos os links dos produtos após a pesquisa
+        product_links = driver.find_elements(By.CSS_SELECTOR, 'html body.js-head-offset.head-offset.transition-long.template-search section.category-body div.container div.js-product-table.row a.js-item-link.item-link.position-absolute.w-100')
 
-    # Encontre todos os elementos que correspondem ao seletor do preço
-    precos = [elemento.text.strip() for elemento in soup.select(seletor_preco)]
+        # Inicialize listas para armazenar dados
+        product_names = []
+        product_prices = []
+        product_descriptions = []
+        image_urls = []
 
-    # Verificar se os arrays têm o mesmo comprimento
-    if len(nomes) != len(descricoes) or len(nomes) != len(precos):
-        st.error("Os seletores não retornaram arrays de mesmo comprimento. Verifique os seletores fornecidos.")
-        return
+        # Extraia os links e avance para cada página
+        for link in product_links:
+            product_link = link.get_attribute("href")
 
-    # Criar um DataFrame com os dados
-    dados = pd.DataFrame({
-        'Nome do Produto': nomes,
-        'Descrição': descricoes,
-        'Preço': precos
-    })
+            # Abra o link do produto
+            driver.get(product_link)
 
-    # Salvar os dados em XLSX
-    arquivo_xlsx = f'{nome_arquivo_base}.xlsx'
-    dados.to_excel(arquivo_xlsx, index=False)
+            # Aguarde até que a próxima página seja carregada (ajuste o tempo limite conforme necessário)
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.product-title h1')))
 
-    # Salvar os dados em CSV
-    arquivo_csv = f'{nome_arquivo_base}.csv'
-    dados.to_csv(arquivo_csv, index=False)
+            # Coletar informações do produto
+            product_name = driver.find_element(By.CSS_SELECTOR, '.product-title h1').text
+            product_price = driver.find_element(By.CSS_SELECTOR, 'span.d-inline-block h4#price_display.js-price-display.h2.mb-2.text-brand').text
+            product_description = driver.find_element(By.CSS_SELECTOR, '.product-description').text
 
-    # Apresentar a tabela no Streamlit
-    st.write(dados)
+            # Coletar a URL da imagem
+            image_element = driver.find_element(By.CSS_SELECTOR, 'div.js-product-slide:nth-child(1) > a:nth-child(1) > img:nth-child(1)')
+            image_url = image_element.get_attribute("src")
 
-    # Retornar os nomes dos arquivos salvos
-    return arquivo_xlsx, arquivo_csv
+            # Adicionar informações às listas
+            product_names.append(product_name)
+            product_prices.append(product_price)
+            product_descriptions.append(product_description)
+            image_urls.append(image_url)
 
-# Configurar a interface do Streamlit
-st.title('Raspagem de Dados HTML com Streamlit')
-url = st.text_input('Insira a URL que deseja raspar:')
-nome_produto = st.text_input('Insira o Nome do Produto para encontrar elementos:')
-seletor_nome = st.text_input('Insira o seletor CSS para o nome do produto:')
-seletor_descricao = st.text_input('Insira o seletor CSS para a descrição:')
-seletor_preco = st.text_input('Insira o seletor CSS para o preço:')
-nome_arquivo_base = st.text_input('Insira o nome base dos arquivos XLSX e CSV (sem extensão):')
+            # Retornar à página de resultados de pesquisa
+            driver.back()
 
-if st.button('Encontrar Elementos'):
-    elementos_encontrados = encontrar_elementos_com_base_no_nome(url, nome_produto)
-    
-    if not elementos_encontrados:
-        st.warning(f'Nenhum elemento com o nome "{nome_produto}" encontrado na página.')
-    else:
-        st.success(f'Elementos encontrados com o nome "{nome_produto}":')
-        st.write(elementos_encontrados)
+            # Aguarde até que a página de resultados de pesquisa seja carregada novamente
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="search"]')))
 
-if st.button('Raspar e Salvar Dados'):
-    raspar_e_salvar_dados(url, seletor_nome, seletor_descricao, seletor_preco, nome_arquivo_base)
+        # Criar um DataFrame do Pandas com os dados coletados
+        data = {
+            'Nome do Produto': product_names,
+            'Preço do Produto': product_prices,
+            'Descrição do Produto': product_descriptions,
+            'URL da Imagem': image_urls
+        }
+        df = pd.DataFrame(data)
+
+        # Salvar os dados em um arquivo CSV
+        df.to_csv('dados_produtos.csv', index=False)
+
+        # Finalizar o driver
+        driver.quit()
+
+    # Chame a função para pesquisar e raspar dados
+    search_and_scrape(product_name)
