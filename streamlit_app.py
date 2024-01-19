@@ -3,11 +3,10 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
-# Função para raspar dados com base no nome do brinquedo
-def scrape_product_data(nome_brinquedo):
+# Função para raspar dados com base no URL e no nome do brinquedo
+def scrape_product_data(url, nome_brinquedo):
     try:
-        # Faça uma requisição para o site de comércio eletrônico
-        url = f'https://plantandoebrincando.com.br/search?q={nome_brinquedo}'
+        # Faça uma requisição para o site fornecido
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -20,30 +19,32 @@ def scrape_product_data(nome_brinquedo):
         preco_element = soup.select_one('seletor_css_do_preco')
         preco = preco_element.text.strip() if preco_element else 'Não encontrado'
 
-        return nome_brinquedo, descricao_produto, preco
+        return url, nome_brinquedo, descricao_produto, preco
 
     except Exception as e:
-        st.error(f"Erro ao raspar dados para {nome_brinquedo}: {e}")
-        return nome_brinquedo, "Erro", "Erro"
+        st.error(f"Erro ao raspar dados para {nome_brinquedo} no site {url}: {e}")
+        return url, nome_brinquedo, "Erro", "Erro"
 
 # Inicialização do Streamlit
 st.title('Web Scraping de Brinquedos')
 
-# Input do usuário
-nomes_brinquedos = st.text_area("Digite os nomes dos brinquedos, separados por linha:")
-lista_brinquedos = nomes_brinquedos.split("\n")
+# Input do usuário para URLs e nome do brinquedo
+urls_input = st.text_area("Digite os URLs dos sites, separados por linha:")
+urls = urls_input.split("\n")
+
+nome_brinquedo = st.text_input("Digite o nome do brinquedo:")
 
 if st.button('Iniciar Scraping'):
     # Lista para armazenar os resultados
     resultados = []
 
-    for nome in lista_brinquedos:
-        if nome:  # Verifica se o nome não está vazio
-            resultado = scrape_product_data(nome)
+    for url in urls:
+        if url:  # Verifica se a URL não está vazia
+            resultado = scrape_product_data(url, nome_brinquedo)
             resultados.append(resultado)
 
     # Convertendo os resultados para DataFrame
-    df_resultados = pd.DataFrame(resultados, columns=['Nome do Brinquedo', 'Descrição do Produto', 'Preço do Produto'])
+    df_resultados = pd.DataFrame(resultados, columns=['URL', 'Nome do Brinquedo', 'Descrição do Produto', 'Preço do Produto'])
     
     # Mostrando os resultados no Streamlit
     st.write(df_resultados)
