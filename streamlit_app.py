@@ -1,44 +1,52 @@
+import requests
+from bs4 import BeautifulSoup
+import json
 import streamlit as st
-from requests_html import HTMLSession
-import pandas as pd
 
-def corrigir_url(url):
-    url = url.strip().rstrip(',')
-    if not url.startswith(('http://', 'https://')):
-        url = 'http://' + url
-    return url
-
-def scrape_product_data(url, nome_brinquedo):
+# Função auxiliar para raspar sublinks
+def raspar_sublinks(url, seletores):
     try:
-        url_corrigido = corrigir_url(url)
-        session = HTMLSession()
-        response = session.get(url_corrigido)
+        response = requests.get(url)
+        sub_soup = BeautifulSoup(response.text, 'html.parser')
+        sub_dados = {}
+        for seletor in seletores:
+            sub_elementos = sub_soup.find_all(seletor)
+            sub_dados[seletor] = [elemento.get_text().strip() for elemento in sub_elementos]
+        return sub_dados
+    except requests.RequestException:
+        return None
 
-        # Renderiza a página, incluindo JavaScript
-        response.html.render()
+# Função para raspar e salvar JSON
+def raspar_e_salvar_json(url, seletores, nome_arquivo_json):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Substitua os seletores abaixo com os seletores CSS adequados
-        descricao_produto = response.html.find('seletor_css_para_descricao', first=True).text
-        preco = response.html.find('seletor_css_para_preco', first=True).text
+    dados = {seletor: [elemento.get_text().strip() for elemento in soup.find_all(seletor)] for seletor in seletores}
 
-        return url, nome_brinquedo, descricao_produto, preco
+    # Raspagem de sublinks
+    sublinks = [a['href'] for a in soup.find_all('a', href=True) if a['href'].startswith('http')]
+    dados_sublinks = {sublink: raspar_sublinks(sublink, seletores) for sublink in sublinks}
 
-    except Exception as e:
-        st.error(f"Erro ao raspar dados para {nome_brinquedo} no site {url}: {e}")
-        return url, nome_brinquedo, "Erro", "Erro"
+    # Raspagem de sub-sublinks
+    for sublink, sub_dados in dados_sublinks.items():
+        if sub_dados:
+            sub_sublinks = [a['href'] for a in BeautifulSoup(requests.get(sublink).text, 'html.parser').find_all('a', href=True) if a['href'].startswith('http')]
+            sub_dados['sub_sublinks'] = {sub_sublink: raspar_sublinks(sub_sublink, seletores) for sub_sublink in sub_sublinks}
 
-st.title('Web Scraping de Brinquedos com Requests-HTML')
+    dados['sublinks'] = dados_sublinks
 
-urls_input = st.text_area("Digite os URLs dos sites, separados por linha:")
-urls = urls_input.split("\n")
-nome_brinquedo = st.text_input("Digite o nome do brinquedo:")
+    # Salvar os dados em JSON
+    with open(nome_arquivo_json, 'w', encoding='utf-8') as json_file:
+        json.dump(dados, json_file, ensure_ascii=False, indent=4)
 
-if st.button('Iniciar Scraping'):
-    resultados = []
-    for url in urls:
-        if url:
-            resultado = scrape_product_data(url, nome_brinquedo)
-            resultados.append(resultado)
-
-    df_resultados = pd.DataFrame(resultados, columns=['URL', 'Nome do Brinquedo', 'Descrição do Produto', 'Preço do Produto'])
-    st.write(df_resultados)
+# Configurar a interface do Streamlit
+st.title('Raspagem de Dados HTML com Streamlit')
+url = st.text_input('Insira a URL que deseja raspar:')
+seletores = st.text_input('Insira os seletores HTML que deseja usar (separados por vírgula):')
+nome_arquivo_json = st.text_input('Insira o nome do arquivo JSON para salvar os dados:')
+if st.button('Raspar e Salvar JSON'):
+    # Converter a string de seletores em uma lista
+    seletores = [s.strip() for s in seletores.split(',')]
+    # Executar a função de raspagem com os valores fornecidos pelo usuário
+    raspar_e_salvar_json(url, seletores, nome_arquivo_json)
+    st.success(f'Dados raspados e salvos em {nome_arquivo_json}')
