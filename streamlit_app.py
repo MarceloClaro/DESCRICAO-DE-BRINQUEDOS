@@ -1,9 +1,8 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
-import lxml.html
-import re
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 import pandas as pd
+import time
 
 def corrigir_url(url):
     url = url.strip().rstrip(',')
@@ -14,21 +13,27 @@ def corrigir_url(url):
 def scrape_product_data(url, nome_brinquedo):
     try:
         url_corrigido = corrigir_url(url)
-        response = requests.get(url_corrigido)
-        soup = BeautifulSoup(response.content, 'lxml')
 
-        # Exemplo de uso do XPath para encontrar um elemento
-        tree = lxml.html.fromstring(response.content)
-        xpath_descricao = 'seu_xpath_para_descricao_aqui'
-        descricao_elements = tree.xpath(xpath_descricao)
-        descricao_produto = descricao_elements[0].text_content().strip() if descricao_elements else 'Não encontrado'
+        # Configuração para rodar o navegador em modo headless
+        options = Options()
+        options.headless = True
+        with webdriver.Firefox(options=options) as driver:
+            driver.get(url_corrigido)
+            
+            # Aguarde o JavaScript carregar (ajuste o tempo conforme necessário)
+            time.sleep(5)  # Espera 5 segundos
 
-        # Exemplo de uso de Regex para encontrar um elemento
-        regex_preco = r'seu_regex_para_preco_aqui'
-        preco_match = re.search(regex_preco, response.text)
-        preco = preco_match.group() if preco_match else 'Não encontrado'
+            # Realize o scraping aqui
+            # Exemplo: encontrar um elemento pelo XPath e extrair o texto
+            # Substitua 'seu_xpath_aqui' pelo XPath correto
+            elemento = driver.find_element_by_xpath('seu_xpath_aqui')
+            descricao_produto = elemento.text if elemento else 'Não encontrado'
 
-        return url, nome_brinquedo, descricao_produto, preco
+            # Substitua 'seu_xpath_para_preco_aqui' pelo XPath correto
+            elemento_preco = driver.find_element_by_xpath('seu_xpath_para_preco_aqui')
+            preco = elemento_preco.text if elemento_preco else 'Não encontrado'
+
+            return url, nome_brinquedo, descricao_produto, preco
 
     except Exception as e:
         st.error(f"Erro ao raspar dados para {nome_brinquedo} no site {url}: {e}")
