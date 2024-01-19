@@ -3,6 +3,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.options import Options
+from webdriver_manager.firefox import GeckoDriverManager
 import pandas as pd
 
 # Função para raspar dados com base no nome do brinquedo
@@ -16,22 +18,21 @@ def scrape_product_data(nome_brinquedo, driver):
         search_box.send_keys(nome_brinquedo)
         search_box.submit()
 
-        # Aguarde até que os resultados da pesquisa sejam carregados (ajuste o tempo limite conforme necessário)
+        # Aguarde até que os resultados da pesquisa sejam carregados
         wait = WebDriverWait(driver, 10)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'resultado-da-pesquisa')))
 
-        # Agora, encontre o elemento que contém as informações do produto (ajuste o XPath conforme necessário)
+        # Encontre os elementos que contêm as informações do produto
         product_element = driver.find_element(By.XPATH, 'xpath_do_produto')
         descricao_produto = product_element.text
 
-        # Encontre o elemento que contém o preço do produto (ajuste o XPath conforme necessário)
         preco_element = driver.find_element(By.XPATH, 'xpath_do_preco')
         preco = preco_element.text
 
         return nome_brinquedo, descricao_produto, preco
 
     except Exception as e:
-        print(f"Erro ao raspar dados para {nome_brinquedo}: {e}")
+        st.error(f"Erro ao raspar dados para {nome_brinquedo}: {e}")
         return nome_brinquedo, "Erro", "Erro"
 
 # Inicialização do Streamlit
@@ -42,8 +43,12 @@ nomes_brinquedos = st.text_area("Digite os nomes dos brinquedos, separados por l
 lista_brinquedos = nomes_brinquedos.split("\n")
 
 if st.button('Iniciar Scraping'):
+    # Configuração do WebDriver para modo headless
+    options = Options()
+    options.headless = True
+
     # Inicialize o driver do Selenium
-    driver = webdriver.Firefox()
+    driver = webdriver.Firefox(options=options, executable_path=GeckoDriverManager().install())
     
     # Lista para armazenar os resultados
     resultados = []
@@ -60,5 +65,3 @@ if st.button('Iniciar Scraping'):
     
     # Mostrando os resultados no Streamlit
     st.write(df_resultados)
-
-# Executar o app: streamlit run seu_script.py
