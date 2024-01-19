@@ -3,6 +3,20 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 import pandas as pd
 import time
+from selenium import webdriver
+from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.firefox.options import Options
+
+def initialize_webdriver():
+    options = Options()
+    options.headless = True  # Configuração para modo headless
+    # Configuração do driver usando webdriver_manager
+    driver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), options=options)
+    return driver
+
+# Em seguida, use esta função para inicializar o Selenium WebDriver em seu script
+driver = initialize_webdriver()
+# Seu código de scraping aqui...
 
 def corrigir_url(url):
     url = url.strip().rstrip(',')
