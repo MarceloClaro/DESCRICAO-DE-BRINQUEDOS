@@ -2,6 +2,21 @@ import requests
 from bs4 import BeautifulSoup
 import streamlit as st
 import pandas as pd
+from lxml import html
+
+# Função para encontrar elementos HTML com base no nome do produto usando XPath
+def encontrar_elementos_com_base_no_nome(url, nome_produto):
+    response = requests.get(url)
+    page_content = html.fromstring(response.content)
+
+    # Use XPath para encontrar elementos que contenham o nome do produto
+    xpath_query = f"//*[contains(text(), '{nome_produto}')]"
+    elementos = page_content.xpath(xpath_query)
+
+    # Crie uma lista de textos dos elementos encontrados
+    textos_elementos = [elemento.text_content() for elemento in elementos]
+
+    return textos_elementos
 
 # Função para raspar e salvar dados em XLSX e CSV
 def raspar_e_salvar_dados(url, seletor_nome, seletor_descricao, seletor_preco, nome_arquivo_base):
@@ -46,9 +61,20 @@ def raspar_e_salvar_dados(url, seletor_nome, seletor_descricao, seletor_preco, n
 # Configurar a interface do Streamlit
 st.title('Raspagem de Dados HTML com Streamlit')
 url = st.text_input('Insira a URL que deseja raspar:')
+nome_produto = st.text_input('Insira o Nome do Produto para encontrar elementos:')
 seletor_nome = st.text_input('Insira o seletor CSS para o nome do produto:')
 seletor_descricao = st.text_input('Insira o seletor CSS para a descrição:')
 seletor_preco = st.text_input('Insira o seletor CSS para o preço:')
 nome_arquivo_base = st.text_input('Insira o nome base dos arquivos XLSX e CSV (sem extensão):')
+
+if st.button('Encontrar Elementos'):
+    elementos_encontrados = encontrar_elementos_com_base_no_nome(url, nome_produto)
+    
+    if not elementos_encontrados:
+        st.warning(f'Nenhum elemento com o nome "{nome_produto}" encontrado na página.')
+    else:
+        st.success(f'Elementos encontrados com o nome "{nome_produto}":')
+        st.write(elementos_encontrados)
+
 if st.button('Raspar e Salvar Dados'):
     raspar_e_salvar_dados(url, seletor_nome, seletor_descricao, seletor_preco, nome_arquivo_base)
