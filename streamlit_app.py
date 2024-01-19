@@ -18,14 +18,16 @@ def raspar_e_salvar_dados(url, seletores, nome_arquivo_base):
     for seletor in seletores:
         elementos = soup.select(seletor)
         if seletor == seletores[0]:
-            # O primeiro seletor é para o nome do produto
             nomes = [elemento.text.strip() for elemento in elementos]
         elif seletor == seletores[1]:
-            # O segundo seletor é para a descrição
             descricoes = [elemento.text.strip() for elemento in elementos]
         elif seletor == seletores[2]:
-            # O terceiro seletor é para o preço
             precos = [elemento.text.strip() for elemento in elementos]
+
+    # Verificar se os arrays têm o mesmo comprimento
+    if len(nomes) != len(descricoes) or len(nomes) != len(precos):
+        st.error("Os seletores não retornaram arrays de mesmo comprimento. Verifique os seletores fornecidos.")
+        return
 
     # Criar um DataFrame com os dados
     dados = pd.DataFrame({
@@ -54,8 +56,5 @@ url = st.text_input('Insira a URL que deseja raspar:')
 seletores = st.text_input('Insira os seletores HTML para o nome do produto, descrição e preço (separados por vírgula):')
 nome_arquivo_base = st.text_input('Insira o nome base dos arquivos XLSX e CSV (sem extensão):')
 if st.button('Raspar e Salvar Dados'):
-    # Converter a string de seletores em uma lista
     seletores = [s.strip() for s in seletores.split(',')]
-    # Executar a função de raspagem com os valores fornecidos pelo usuário
-    arquivo_xlsx, arquivo_csv = raspar_e_salvar_dados(url, seletores, nome_arquivo_base)
-    st.success(f'Dados raspados e salvos em {arquivo_xlsx} e {arquivo_csv}')
+    raspar_e_salvar_dados(url, seletores, nome_arquivo_base)
