@@ -1,3 +1,4 @@
+import streamlit as st
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -5,10 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
 
 # Função para raspar dados com base no nome do brinquedo
-def scrape_product_data(nome_brinquedo):
-    # Inicialize o driver do Selenium (neste caso, o Firefox)
-    driver = webdriver.Firefox()
-
+def scrape_product_data(nome_brinquedo, driver):
     try:
         # Abra a URL do site de comércio eletrônico
         driver.get('https://plantandoebrincando.com.br')
@@ -23,42 +21,44 @@ def scrape_product_data(nome_brinquedo):
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'resultado-da-pesquisa')))
 
         # Agora, encontre o elemento que contém as informações do produto (ajuste o XPath conforme necessário)
-        product_element = driver.find_element(By.XPATH, '/html/body/div[10]/div/div[1]/div[2]')
-
-        # Extraia o texto do elemento para obter a descrição do produto
+        product_element = driver.find_element(By.XPATH, 'xpath_do_produto')
         descricao_produto = product_element.text
 
         # Encontre o elemento que contém o preço do produto (ajuste o XPath conforme necessário)
-        preco_element = driver.find_element(By.XPATH, '/html/body/div[10]/div/div[1]/div[2]')
-
-        # Extraia o texto do elemento para obter o preço do produto
+        preco_element = driver.find_element(By.XPATH, 'xpath_do_preco')
         preco = preco_element.text
 
-        # Crie um dicionário com os dados
-        dados = {
-            'Nome do Brinquedo': [nome_brinquedo],
-            'Descrição do Produto': [descricao_produto],
-            'Preço do Produto': [preco]
-        }
+        return nome_brinquedo, descricao_produto, preco
 
-        # Crie um DataFrame do Pandas a partir do dicionário
-        df = pd.DataFrame(dados)
+    except Exception as e:
+        print(f"Erro ao raspar dados para {nome_brinquedo}: {e}")
+        return nome_brinquedo, "Erro", "Erro"
 
-        # Salve os dados em um arquivo CSV com o nome do brinquedo
-        csv_filename = nome_brinquedo.replace(' ', '_') + '_dados.csv'
-        df.to_csv(csv_filename, index=False)
+# Inicialização do Streamlit
+st.title('Web Scraping de Brinquedos')
 
-        # Imprima os resultados
-        print("Nome do Brinquedo:", nome_brinquedo)
-        print("Descrição do Produto:", descricao_produto)
-        print("Preço do Produto:", preco)
+# Input do usuário
+nomes_brinquedos = st.text_area("Digite os nomes dos brinquedos, separados por linha:")
+lista_brinquedos = nomes_brinquedos.split("\n")
 
-    finally:
-        # Feche o driver do Selenium, independentemente do resultado
-        driver.quit()
+if st.button('Iniciar Scraping'):
+    # Inicialize o driver do Selenium
+    driver = webdriver.Firefox()
+    
+    # Lista para armazenar os resultados
+    resultados = []
 
-# Pergunte ao usuário pelo nome do brinquedo
-nome_brinquedo = input("Digite o nome do brinquedo a ser raspado: ")
+    for nome in lista_brinquedos:
+        if nome:  # Verifica se o nome não está vazio
+            resultado = scrape_product_data(nome, driver)
+            resultados.append(resultado)
 
-# Chame a função de raspagem com o nome do brinquedo fornecido
-scrape_product_data(nome_brinquedo)
+    driver.quit()
+
+    # Convertendo os resultados para DataFrame
+    df_resultados = pd.DataFrame(resultados, columns=['Nome do Brinquedo', 'Descrição do Produto', 'Preço do Produto'])
+    
+    # Mostrando os resultados no Streamlit
+    st.write(df_resultados)
+
+# Executar o app: streamlit run seu_script.py
