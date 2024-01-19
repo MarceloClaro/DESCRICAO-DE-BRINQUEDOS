@@ -5,6 +5,7 @@ import pandas as pd
 
 # Função para corrigir e completar o URL se necessário
 def corrigir_url(url):
+    url = url.strip().rstrip(',')  # Remove espaços e vírgulas extras
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
     return url
