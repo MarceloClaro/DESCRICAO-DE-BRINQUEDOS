@@ -1,22 +1,9 @@
 import streamlit as st
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 import time
-from selenium import webdriver
-from webdriver_manager.firefox import GeckoDriverManager
-from selenium.webdriver.firefox.options import Options
-
-def initialize_webdriver():
-    options = Options()
-    options.headless = True  # Configuração para modo headless
-    # Configuração do driver usando webdriver_manager
-    driver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), options=options)
-    return driver
-
-# Em seguida, use esta função para inicializar o Selenium WebDriver em seu script
-driver = initialize_webdriver()
-# Seu código de scraping aqui...
 
 def corrigir_url(url):
     url = url.strip().rstrip(',')
@@ -31,19 +18,19 @@ def scrape_product_data(url, nome_brinquedo):
         # Configuração para rodar o navegador em modo headless
         options = Options()
         options.headless = True
-        with webdriver.Firefox(options=options) as driver:
+
+        # Configuração do driver usando webdriver_manager para Chrome
+        with webdriver.Chrome(ChromeDriverManager().install(), options=options) as driver:
             driver.get(url_corrigido)
-            
-            # Aguarde o JavaScript carregar (ajuste o tempo conforme necessário)
-            time.sleep(5)  # Espera 5 segundos
+            time.sleep(5)  # Espera para o JavaScript carregar
 
             # Realize o scraping aqui
+            # Você precisará ajustar o código abaixo para se adaptar ao seu caso específico
             # Exemplo: encontrar um elemento pelo XPath e extrair o texto
-            # Substitua 'seu_xpath_aqui' pelo XPath correto
             elemento = driver.find_element_by_xpath('seu_xpath_aqui')
             descricao_produto = elemento.text if elemento else 'Não encontrado'
 
-            # Substitua 'seu_xpath_para_preco_aqui' pelo XPath correto
+            # Exemplo para preço do produto
             elemento_preco = driver.find_element_by_xpath('seu_xpath_para_preco_aqui')
             preco = elemento_preco.text if elemento_preco else 'Não encontrado'
 
@@ -53,7 +40,7 @@ def scrape_product_data(url, nome_brinquedo):
         st.error(f"Erro ao raspar dados para {nome_brinquedo} no site {url}: {e}")
         return url, nome_brinquedo, "Erro", "Erro"
 
-st.title('Web Scraping de Brinquedos Avançado')
+st.title('Web Scraping de Brinquedos com Selenium e Chrome Headless')
 
 urls_input = st.text_area("Digite os URLs dos sites, separados por linha:")
 urls = urls_input.split("\n")
